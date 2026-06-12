@@ -600,6 +600,16 @@ function isSettled(match) {
 }
 
 /** 判断两场比赛是否同一对队伍（不分主客） */
+/** 判断比赛是否已截止预测（比赛时间已过或有赛果） */
+function isMatchLocked(match) {
+  if (isSettled(match)) return true;
+  if (!match.time) return false;
+  var p = match.time.split(/[- :]/);
+  var matchDate = new Date(+p[0], +p[1]-1, +p[2], +p[3], +p[4]);
+  return new Date() > matchDate;
+}
+
+
 function sameTeams(m1, m2) {
   return (m1.home === m2.home && m1.away === m2.away) ||
          (m1.home === m2.away && m1.away === m2.home);
@@ -759,7 +769,7 @@ function renderSchedule() {
 
   var html = '';
   matches.forEach(function(m) {
-    var settled = isSettled(m);
+    var settled = isMatchLocked(m);
     var showScore = settled ? (m.homeScore + ' - ' + m.awayScore) : '? - ?';
     var scoreClass = settled ? 'score-display live' : 'score-display';
 
@@ -802,7 +812,7 @@ function renderPredictions() {
   var allPreds = getPredictions();
   var html = '';
   matches.forEach(function(m) {
-    var settled = isSettled(m);
+    var settled = isMatchLocked(m);
     var existingPred = allPreds.find(function(p) { return p.matchId === m.id && p.nickname === nickname; });
 
     var predResultHtml = '';
