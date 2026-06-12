@@ -335,14 +335,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green-li
       <div id="adminPanel" style="display:none">
         <div class="form-group">
           <label>管理员密码</label>
-          <input type="password" id="adminPwd" placeholder="默认密码: admin" value="admin">
+          <input type="password" id="adminPwd" placeholder="首次使用请设置密码">
+          <div style="font-size:.75rem;color:var(--gray-500);margin-top:4px">首次输入密码即为设置，之后用同一密码登录</div>
         </div>
         <div class="form-row" style="margin-bottom:8px">
           <button class="btn btn-primary btn-sm" id="addMatchBtn">➕ 新增赛事</button>
+          <button class="btn btn-gold btn-sm" id="syncResultsBtn">📡 一键同步赛果</button>
           <button class="btn btn-outline btn-sm" id="clearPredictionsBtn">🗑️ 清空预测</button>
         </div>
         <button class="btn btn-danger btn-sm btn-block" id="clearAllMatchesBtn">⚠️ 清空全部赛程</button>
-        <!-- TUNABLE: 默认球队列表 -->
         <div class="form-group mt-8">
           <label>默认球队列表（用逗号分隔，新增赛事时可选）</label>
           <input type="text" id="teamListInput" value="墨西哥,南非,韩国,捷克,加拿大,波黑,卡塔尔,瑞士,巴西,摩洛哥,海地,苏格兰,美国,巴拉圭,澳大利亚,土耳其,德国,库拉索,科特迪瓦,厄瓜多尔,荷兰,日本,瑞典,突尼斯,比利时,埃及,伊朗,新西兰,西班牙,佛得角,沙特阿拉伯,乌拉圭,法国,塞内加尔,伊拉克,挪威,阿根廷,阿尔及利亚,奥地利,约旦,葡萄牙,民主刚果,乌兹别克斯坦,哥伦比亚,英格兰,克罗地亚,加纳,巴拿马">
@@ -561,7 +562,7 @@ var MATCH_STAGES = [
 ];  // <<< 可修改：添加/修改阶段名称
 
 // ---------- 管理员密码 ----------
-var ADMIN_PASSWORD = 'admin';  // <<< 可修改：管理员密码
+var ADMIN_PASSWORD = '';  // <<< 可修改：管理员密码
 
 /* ============================================================
    🎯 可修改区域结束
@@ -1392,6 +1393,86 @@ function initSampleData() {
   });
   setMatches(matches);
 }
+
+/** 球队名称中英文映射（用于API同步） */
+var TEAM_NAME_MAP = {
+  '墨西哥':'Mexico','南非':'South Africa','韩国':'South Korea','捷克':'Czech Republic',
+  '加拿大':'Canada','波黑':'Bosnia-Herzegovina','卡塔尔':'Qatar','瑞士':'Switzerland',
+  '巴西':'Brazil','摩洛哥':'Morocco','海地':'Haiti','苏格兰':'Scotland',
+  '美国':'USA','巴拉圭':'Paraguay','澳大利亚':'Australia','土耳其':'Turkey',
+  '德国':'Germany','库拉索':'Curaçao','科特迪瓦':'Ivory Coast','厄瓜多尔':'Ecuador',
+  '荷兰':'Netherlands','日本':'Japan','瑞典':'Sweden','突尼斯':'Tunisia',
+  '比利时':'Belgium','埃及':'Egypt','伊朗':'Iran','新西兰':'New Zealand',
+  '西班牙':'Spain','佛得角':'Cape Verde','沙特阿拉伯':'Saudi Arabia','乌拉圭':'Uruguay',
+  '法国':'France','塞内加尔':'Senegal','伊拉克':'Iraq','挪威':'Norway',
+  '阿根廷':'Argentina','阿尔及利亚':'Algeria','奥地利':'Austria','约旦':'Jordan',
+  '葡萄牙':'Portugal','民主刚果':'DR Congo','乌兹别克斯坦':'Uzbekistan','哥伦比亚':'Colombia',
+  '英格兰':'England','克罗地亚':'Croatia','加纳':'Ghana','巴拿马':'Panama'
+};
+
+/** 从TheSportsDB同步赛果 */
+function syncResults() {
+  var btn = document.getElementById('syncResultsBtn');
+  btn.textContent = '⏳ 同步中...';
+  btn.disabled = true;
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4429&s=2026', true);
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      var events = data.events || [];
+      var matches = getMatches();
+      var updated = 0;
+
+      events.forEach(function(evt) {
+        if (!evt.intHomeScore || !evt.intAwayScore) return;
+        if (evt.intHomeScore === '' || evt.intAwayScore === '') return;
+
+        // Parse event team names (e.g., "Mexico vs South Africa")
+        var parts = evt.strEvent.split(' vs ');
+        if (parts.length !== 2) return;
+        var apiHome = parts[0].trim();
+        var apiAway = parts[1].trim();
+
+        // Try to find matching match in local data
+        matches.forEach(function(m) {
+          var localHomeEn = TEAM_NAME_MAP[m.home] || m.home;
+          var localAwayEn = TEAM_NAME_MAP[m.away] || m.away;
+
+          if (localHomeEn === apiHome && localAwayEn === apiAway) {
+            // Check if match already has this score
+            if (Number(m.homeScore) !== Number(evt.intHomeScore) || Number(m.awayScore) !== Number(evt.intAwayScore)) {
+              m.homeScore = Number(evt.intHomeScore);
+              m.awayScore = Number(evt.intAwayScore);
+              updated++;
+            }
+          }
+        });
+      });
+
+      setMatches(matches);
+      btn.textContent = '📡 一键同步赛果';
+      btn.disabled = false;
+      showToast('同步完成！更新了 ' + updated + ' 场赛果');
+      renderSchedule();
+      renderPredictions();
+      renderLeaderboard();
+      renderSummary();
+    } catch(e) {
+      btn.textContent = '📡 一键同步赛果';
+      btn.disabled = false;
+      showToast('同步失败：' + e.message);
+    }
+  };
+  xhr.onerror = function() {
+    btn.textContent = '📡 一键同步赛果';
+    btn.disabled = false;
+    showToast('网络请求失败，请检查网络连接');
+  };
+  xhr.send();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
 
   initSampleData();
@@ -1442,7 +1523,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  document.getElementById('addMatchBtn').addEventListener('click', openAddMatch);
+  
+  document.getElementById('syncResultsBtn').addEventListener('click', syncResults);
+document.getElementById('addMatchBtn').addEventListener('click', openAddMatch);
   document.getElementById('clearPredictionsBtn').addEventListener('click', clearAllPredictions);
   document.getElementById('clearAllPredictionsSummaryBtn').addEventListener('click', clearAllPredictions);
   document.getElementById('clearAllMatchesBtn').addEventListener('click', clearAllMatches);
