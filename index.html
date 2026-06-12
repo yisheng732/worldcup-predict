@@ -333,11 +333,38 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green-li
         <label class="switch"><input type="checkbox" id="adminToggle"><span class="slider"></span></label>
       </div>
       <div id="adminPanel" style="display:none">
-        <div class="form-group">
-          <label>管理员密码</label>
-          <input type="password" id="adminPwd" placeholder="首次使用请设置密码">
-          <div style="font-size:.75rem;color:var(--gray-500);margin-top:4px">首次输入密码即为设置，之后用同一密码登录</div>
+        <!-- 首次设置密码 -->
+        <div id="adminSetupBox" class="card" style="background:var(--gray-50);padding:12px;margin-bottom:10px">
+          <div style="font-size:.82rem;font-weight:600;color:var(--green);margin-bottom:6px">🔐 首次使用：设置管理员密码</div>
+          <div class="form-group"><label>设置密码</label><input type="password" id="adminSetupPwd" placeholder="输入密码（至少4位）"></div>
+          <div class="form-group"><label>确认密码</label><input type="password" id="adminSetupPwd2" placeholder="再次输入"></div>
+          <button class="btn btn-primary btn-sm btn-block" id="adminSetupBtn">确认设置</button>
         </div>
+        <!-- 登录 -->
+        <div id="adminLoginBox" style="display:none">
+          <div class="form-group">
+            <label>管理员密码</label>
+            <input type="password" id="adminPwd" placeholder="输入管理员密码">
+          </div>
+          <button class="btn btn-primary btn-sm btn-block" id="adminLoginBtn">🔓 验证身份</button>
+        </div>
+        <!-- 管理面板 -->
+        <div id="adminContent" style="display:none">
+          <div style="font-size:.82rem;color:var(--green);margin-bottom:8px">✅ 管理员已登录</div>
+          <div class="form-row" style="margin-bottom:8px">
+            <button class="btn btn-primary btn-sm" id="addMatchBtn">➕ 新增赛事</button>
+            <button class="btn btn-gold btn-sm" id="syncResultsBtn">📡 一键同步赛果</button>
+          </div>
+          <div class="form-row" style="margin-bottom:8px">
+            <button class="btn btn-outline btn-sm" id="clearPredictionsBtn">🗑️ 清空预测</button>
+            <button class="btn btn-danger btn-sm" id="clearAllMatchesBtn">⚠️ 清空全部赛程</button>
+          </div>
+          <div class="form-group mt-8">
+            <label>默认球队列表（用逗号分隔）</label>
+            <input type="text" id="teamListInput" value="墨西哥,南非,韩国,捷克,加拿大,波黑,卡塔尔,瑞士,巴西,摩洛哥,海地,苏格兰,美国,巴拉圭,澳大利亚,土耳其,德国,库拉索,科特迪瓦,厄瓜多尔,荷兰,日本,瑞典,突尼斯,比利时,埃及,伊朗,新西兰,西班牙,佛得角,沙特阿拉伯,乌拉圭,法国,塞内加尔,伊拉克,挪威,阿根廷,阿尔及利亚,奥地利,约旦,葡萄牙,民主刚果,乌兹别克斯坦,哥伦比亚,英格兰,克罗地亚,加纳,巴拿马">
+          </div>
+        </div>
+      </div>
         <div class="form-row" style="margin-bottom:8px">
           <button class="btn btn-primary btn-sm" id="addMatchBtn">➕ 新增赛事</button>
           <button class="btn btn-gold btn-sm" id="syncResultsBtn">📡 一键同步赛果</button>
@@ -750,7 +777,7 @@ function renderSchedule() {
   var matches = getMatches();
   var el = document.getElementById('scheduleList');
   var admin = document.getElementById('adminToggle').checked;
-  var isAuthed = admin && document.getElementById('adminPwd').value === ADMIN_PASSWORD;
+  var isAuthed = admin && document.getElementById('adminContent').style.display === 'block';
 
   if (matches.length === 0) {
     el.innerHTML = '<div class="empty-state"><span class="icon">📅</span>暂无赛程数据<br>管理员模式下点击「新增赛事」开始录入</div>';
