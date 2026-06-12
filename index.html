@@ -589,6 +589,40 @@ function setPredictions(p) { setData(LS_KEY_PREDICTIONS, p); }
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
 // ============================================================
+//  服务器模式 - 多用户共享数据（排行榜可见所有人）
+// ============================================================
+var _serverData = null;
+var _serverMode = window.location.protocol === 'http:' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+// 加载服务器数据
+function loadServerData() {
+  if (!_serverMode) return;
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/data', false);
+    xhr.send();
+    if (xhr.status === 200) {
+      _serverData = JSON.parse(xhr.responseText);
+    }
+  } catch(e) {}
+}
+
+// 保存数据到服务器
+function saveServerData() {
+  if (!_serverMode || !_serverData) return;
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/data', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify(_serverData));
+  } catch(e) {}
+}
+
+// 启动时加载
+loadServerData();
+
+// ============================================================
 //  工具函数
 // ============================================================
 
